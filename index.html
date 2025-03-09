@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MDCU Anki Decks</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-top: 40px;
+        }
+
+        h1 { text-align: center; }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            font-weight: bold;
+        }
+
+        input[type="text"], input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+
+        .btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .btn:hover {
+            background-color: #45a049;
+        }
+
+        .deck-list {
+            margin-top: 30px;
+        }
+
+        .deck-item {
+            background-color: #e3e4e6;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .remove-btn {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .remove-btn:hover {
+            background-color: #d32f2f;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>MDCU Anki Decks</h1>
+
+        <div class="input-group">
+            <label for="title">Deck Title</label>
+            <input type="text" id="title" placeholder="Enter deck title">
+        </div>
+
+        <div class="input-group">
+            <label for="description">Deck Description</label>
+            <input type="text" id="description" placeholder="Enter deck description">
+        </div>
+
+        <div class="input-group">
+            <label for="file">Upload Deck (.apkg)</label>
+            <input type="file" id="file" accept=".apkg">
+        </div>
+
+        <button class="btn" onclick="uploadDeck()">Upload Deck</button>
+
+        <div class="deck-list" id="deck-list">
+            <h2>Available Decks</h2>
+            <!-- Dynamically added decks will appear here -->
+        </div>
+    </div>
+
+    <script>
+async function fetchDecks() {
+    try {
+        const response = await fetch('/api/decks');
+        const decks = await response.json();
+
+        const deckList = document.getElementById('deck-list');
+        deckList.innerHTML = '<h2>Available Decks</h2>';
+
+        decks.forEach(deck => {
+            const deckItem = document.createElement('div');
+            deckItem.classList.add('deck-item');
+
+            // Conditionally include the description only if it exists
+            const descriptionText = deck.description ? `- ${deck.description}` : '';
+
+            deckItem.innerHTML = `
+                <div>
+                    ${deck.title || 'Untitled'} ${descriptionText} 
+                    - <a href="${deck.fileUrl}" download="${deck.title}.apkg">Download</a>
+                </div>
+                <button class="remove-btn" onclick="removeDeck('${deck._id}')">Remove</button>
+            `;
+            deckList.appendChild(deckItem);
+        });
+    } catch (error) {
+        console.error('Error fetching decks:', error);
+    }
+}
+
+async function uploadDeck() {
+    const titleInput = document.getElementById('title');
+    const descriptionInput = document.getElementById('description');
+    const fileInput = document.getElementById('file');
+
+    const title = titleInput.value.trim();
+    const description = descriptionInput.value.trim();
+
+    if (!title || !fileInput.files.length) {
+        alert("Please provide a title and select a file.");
+        return;
+    }
+
+    const file = fileInput.files[0];
+    const formData = new FormData();
+    formData.append('title', title);
+    formData.append('description', description);
+    formData.append('file', file);
+
+    try {
+        const response = await fetch('/api/deck', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to upload deck');
+        }
+
+        const newDeck = await response.json();
+
+        // Immediately refresh the deck list
+        await fetchDecks(); 
+
+        // Clear input fields after successful upload
+        titleInput.value = '';
+        descriptionInput.value = '';
+        fileInput.value = '';
+    } catch (error) {
+        console.error('Error uploading deck:', error);
+    }
+}
+
+        async function removeDeck(deckId) {
+            try {
+                await fetch(`/api/deck/${deckId}`, { method: 'DELETE' });
+                alert('Deck removed successfully!');
+                fetchDecks(); // Refresh the deck list
+            } catch (error) {
+                console.error('Error removing deck:', error);
+            }
+        }
+
+        window.onload = fetchDecks;  // Fetch decks when the page loads
+    </script>
+</body>
+</html>
